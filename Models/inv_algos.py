@@ -1,14 +1,7 @@
 import torch 
-import queue
 import itertools
 
 class Solution():
-    def __init__(self):
-        pass
-
-    def combine(self, case):
-        pass
-    
     def simple_inv_dependencies(self, case):
         """
         simple inverse a graph (simple)
@@ -31,10 +24,13 @@ class Solution():
         for site in case.keys():
             for child in case[site].keys():
                 tmp1 = (site, child)
-                tmp2 = (site, child,case[site][child])
+                tmp2 = (child, site)
+                tmp3 = (site, child,case[site][child])
+                tmp4 = (child, site, case[site][child])
                 relations1.add(tmp1)
-                relations2.add(tmp2)
-
+                relations1.add(tmp2)
+                relations2.add(tmp3)
+                relations2.add(tmp4)
         return relations1, relations2
 
     def faith_inv(self, case, observed):
@@ -77,41 +73,72 @@ class Solution():
         prepared_nodes = []
         last_node = None
         best_node = None
-        edged_added = None
+        edges_added = None
+        selected_nei = None
         minimum = 100000001
         for ele in root:
             prepared_nodes.append(ele)
-        while prepared_nodes:
+        while prepared_nodes and set(observed) != set(prepared_nodes):
             if len(set(prepared_nodes) & set(root)) != 0:
                 for ele in set(prepared_nodes) & set(root): 
                     #print(minimum)
                     non_zero_index = torch.nonzero(edge_index[all_.index(ele),:]) # where has an edge
-                    neighbors = [all_[int(x)] for x in non_zero_index]
+                    neighbors = sorted([all_[int(x)] for x in non_zero_index]) # neighbours without marked nodes
                     a = list(itertools.combinations(neighbors, 2)) 
                     common = set(sorted(a)) & set(sorted(no_relations))
                     if len(set(sorted(a)) - common) < minimum:
                         best_node = ele
+                        selected_nei = neighbors
                         minimum = len(set(sorted(a)) - common) # minimum to add edges
-                        edge_added = set(sorted(a)) - common 
-
-                print(best_node)
-                
+                        edges_added = set(sorted(a)) - common
+                inv_dep[best_node] = {}
+                for n in selected_nei:
+                    inv_dep[best_node][n] = "linear"
+                edge_index[all_.index(best_node), :] = 0
+                edge_index[:, all_.index(best_node)] = 0
                 prepared_nodes.remove(best_node)
+                marked_nodes.append(best_node)
                 minimum = 1000001
-
+                if len(prepared_nodes) == 0:
+                    for item in selected_nei:
+                        prepared_nodes.append(item)
             else:
                 """ do not care about roots"""
-                break
-                
+                if prepared_nodes == observed: break
+                print(prepared_nodes)
+                for ele in set(prepared_nodes):
+                    
+                    if ele not in observed:
+                        #print(minimum)
+                        non_zero_index = torch.nonzero(edge_index[all_.index(ele),:]) # where has an edge
+                        neighbors = [all_[int(x)] for x in non_zero_index] # neighbours without marked nodes
+                        a = list(itertools.combinations(neighbors, 2)) 
+                        common = set(sorted(a)) & set(sorted(no_relations))
+                        if len(set(sorted(a)) - common) < minimum:
+                            best_node = ele
+                            selected_nei = neighbors
+                            minimum = len(set(sorted(a)) - common) # minimum to add edges
+                            edges_added = set(sorted(a)) - common
 
-            
-        
-        
+                #print(edges_added)
+                print(best_node)
+                inv_dep[best_node] = {}
+                for n in selected_nei:
+                    inv_dep[best_node][n] = "linear"
+                edge_index[all_.index(best_node), :] = 0
+                edge_index[:, all_.index(best_node)] = 0
+                prepared_nodes.remove(best_node)
+                marked_nodes.append(best_node)
+                last_node = best_node
+                minimum = 1000001
+                if len(prepared_nodes) == 0:
+                    for item in selected_nei:
+                        prepared_nodes.append(item)
+            #print(marked_nodes)
+        #print(prepared_nodes)
+        print(inv_dep)
         return inv_dep
     
-    def stochastic_inv(self, case, observed):
-        pass
-        
 if __name__ == "__main__":
 
     case = {"D": {"G": "linear"}, "I": {"G": "linear", "S": "linear"},
@@ -121,10 +148,3 @@ if __name__ == "__main__":
     observed = ["H", "J"]
     s = Solution()
     ans1 = s.faith_inv(case, observed)
-    relations = s.generate_relation(case)
-    #print(relations)
-
-    ans = {
-        
-    }
-    assert ans == ans1
