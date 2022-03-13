@@ -91,6 +91,11 @@ class Solution():
                         selected_nei = neighbors
                         minimum = len(set(sorted(a)) - common) # minimum to add edges
                         edges_added = set(sorted(a)) - common
+
+                for pairs in edges_added:   # add edges 
+                    edge_index[all_.index(pairs[0]),all_.index(pairs[1])] = 1
+                    edge_index[all_.index(pairs[1]), all_.index(pairs[0])] = 1
+
                 inv_dep[best_node] = {}
                 for n in selected_nei:
                     inv_dep[best_node][n] = "linear"
@@ -119,8 +124,11 @@ class Solution():
                             selected_nei = neighbors
                             minimum = len(set(sorted(a)) - common) # minimum to add edges
                             edges_added = set(sorted(a)) - common
+                
+                for pairs in edges_added:   # add edges 
+                    edge_index[all_.index(pairs[0]),all_.index(pairs[1])] = 1
+                    edge_index[all_.index(pairs[1]), all_.index(pairs[0])] = 1
 
-                #print(edges_added)
                 print(best_node)
                 inv_dep[best_node] = {}
                 for n in selected_nei:
@@ -134,8 +142,7 @@ class Solution():
                 if len(prepared_nodes) == 0:
                     for item in selected_nei:
                         prepared_nodes.append(item)
-            #print(marked_nodes)
-        #print(prepared_nodes)
+
         print(inv_dep)
         return inv_dep
     
