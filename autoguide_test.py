@@ -1,3 +1,4 @@
+from random import random
 import pyro
 import pandas as pd
 import numpy as np
@@ -8,9 +9,11 @@ import os
 
 import pyro.distributions as dist
 import pyro.distributions.constraints as constraints
-from pyro.infer.autoguide.guides import AutoDiagonalNormal, AutoNormal, AutoMultivariateNormal, AutoLowRankMultivariateNormal
+from pyro.infer.autoguide.guides import AutoDiagonalNormal, AutoMultivariateNormal, AutoLowRankMultivariateNormal
 from Models.PolyDiagonalNormal import PolyDiagNorm
 from Models.OrthoMultivariateNormal import OrthoMultiNorm
+from Models.LowRankNormal import LowRankNormal
+from pyro.infer.autoguide.structured import AutoStructured
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 smoke_test = ('CI' in os.environ)
@@ -47,21 +50,24 @@ def model(is_cont_africa, ruggedness, log_gdp=None):
     with pyro.plate("data", len(ruggedness)):
         return pyro.sample("obs", dist.Normal(val, sc), obs=log_gdp)
 
-
-guide = OrthoMultiNorm(model)
+guide = LowRankNormal(model, random = True)
+#guide = AutoStructured(model,
+#            conditionals={"a1": "normal", "a2": "normal", "a3": "normal", "a4": "normal", "sc": "normal"},
+#            dependencies={"a1": {"a2": "linear", "a3":"linear"}, "a4": {"a3":"linear"}})
+#guide = OrthoMultiNorm(model)
 #guide = PolyDiagNorm(model, epoch = 1000, order = 1)
 #guide = AutoMultivariateNormal(model)
 #guide = AutoDiagonalNormal(model)
-#guide = AutoLowRankMultivariateNormal(model)
+#guide = AutoLowRankMultivariateNormal(model, rank = 5)
 ## train
-adam = pyro.optim.Adam({"lr": 0.022})
+adam = pyro.optim.Adam({"lr": 0.02})
 elbo = pyro.infer.Trace_ELBO()
 svi = pyro.infer.SVI(model, guide, adam, elbo)
 
 pyro.clear_param_store()
 
 losses = []
-for step in range(1000 if not smoke_test else 2):  # Consider running for more steps.
+for step in range(2000 if not smoke_test else 2):  # Consider running for more steps.
     loss = svi.step(is_cont_africa, ruggedness, log_gdp)
     losses.append(loss)
     print(loss)
@@ -74,3 +80,6 @@ plt.plot(losses)
 plt.xlabel("SVI step")
 plt.ylabel("ELBO loss")
 plt.show()
+
+for key, value in pyro.get_param_store().items():    
+    print(f"{key}:\n{value}\n")

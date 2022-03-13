@@ -13,7 +13,7 @@ class OrthoMultiNorm(AutoContinuous):
     """
     This implementation of :class:`AutoContinuous` uses a Cholesky
     factorization of a Multivariate Normal distribution to construct a guide
-    over the entire latent space. Used full-rank assumptions.
+    over the entire latent space. Used full-rank assumptions and VUV^T decomposition
     The guide does not depend on the model's ``*args, **kwargs``.
 
     Usage::
