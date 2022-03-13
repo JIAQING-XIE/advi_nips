@@ -110,7 +110,6 @@ class Solution():
             else:
                 """ do not care about roots"""
                 if prepared_nodes == observed: break
-                print(prepared_nodes)
                 for ele in set(prepared_nodes):
                     
                     if ele not in observed:
@@ -129,7 +128,7 @@ class Solution():
                     edge_index[all_.index(pairs[0]),all_.index(pairs[1])] = 1
                     edge_index[all_.index(pairs[1]), all_.index(pairs[0])] = 1
 
-                print(best_node)
+                #print(best_node)
                 inv_dep[best_node] = {}
                 for n in selected_nei:
                     inv_dep[best_node][n] = "linear"
@@ -142,7 +141,7 @@ class Solution():
                 if len(prepared_nodes) == 0:
                     for item in selected_nei:
                         prepared_nodes.append(item)
-
+        print(marked_nodes)
         print(inv_dep)
         return inv_dep
     
