@@ -57,7 +57,7 @@ def model(is_cont_africa, ruggedness, log_gdp=None):
 #            conditionals={"a1": "normal", "a2": "normal", "a3": "normal", "a4": "normal", "sc": "normal"},
 #            dependencies={"a1": {"a2": "linear", "a3":"linear"}, "a4": {"a3":"linear"}})
 #guide = OrthoMultiNorm(model, diagonal=True)
-guide = BlockDiagNorm(model, upperbig= True)
+guide = BlockDiagNorm(model, upperbig= False)
 #guide = PolyDiagNorm(model, epoch = 1000, order = 1)
 #guide = AutoMultivariateNormal(model)
 #guide = AutoDiagonalNormal(model)

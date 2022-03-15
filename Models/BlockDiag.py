@@ -28,7 +28,7 @@ class BlockDiagNorm(AutoContinuous):
         svi = SVI(model, guide, ...)
     """
     scale_constraint = constraints.softplus_positive
-    scale_tril_constraint = constraints.corr_matrix
+    scale_tril_constraint = constraints.corr_cholesky_constraint
 
     def __init__(self, model, init_loc_fn=init_to_median, init_scale=0.1, diagonal = True, upperbig = False,
                     multivariate = True):
@@ -116,15 +116,19 @@ class BlockDiagNorm(AutoContinuous):
         
         
         #print(scale_tril[0:tmp, 0:tmp])
-        scale_tril[0:tmp, 0:tmp] = self.A
-        scale_tril[self.latent_dim-tmp+1:self.latent_dim, self.latent_dim-tmp+1:self.latent_dim] = self.B
+        if self.upperbig:
+            scale_tril[0:tmp, 0:tmp] = self.A
+            scale_tril[self.latent_dim-tmp+1:self.latent_dim, self.latent_dim-tmp+1:self.latent_dim] = self.B
+        else:
+            scale_tril[self.latent_dim-tmp+1:self.latent_dim, self.latent_dim-tmp+1:self.latent_dim] = self.A
+            scale_tril[0:tmp, 0:tmp] = self.B
         #p
         #scale_tril = self.scale[..., None] * self.scale_tril
         scale_tril = self.scale[..., None] * scale_tril
         
         #scale_tril = self.build_symmetric_matrix(random = False, matrix = scale_tril)
         #scale_tril = self.to_diagonal(scale_tril) if self.diagonal else scale_tril
-        print(scale_tril)
+        #print(scale_tril)
         
         return dist.MultivariateNormal(self.loc, scale_tril=scale_tril)
 
