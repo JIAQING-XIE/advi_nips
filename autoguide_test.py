@@ -13,7 +13,9 @@ from pyro.infer.autoguide.guides import AutoDiagonalNormal, AutoMultivariateNorm
 from Models.PolyDiagonalNormal import PolyDiagNorm
 from Models.OrthoMultivariateNormal import OrthoMultiNorm
 from Models.LowRankNormal import LowRankNormal
+from Models.BlockDiag import BlockDiagNorm
 from pyro.infer.autoguide.structured import AutoStructured
+
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 smoke_test = ('CI' in os.environ)
@@ -50,11 +52,12 @@ def model(is_cont_africa, ruggedness, log_gdp=None):
     with pyro.plate("data", len(ruggedness)):
         return pyro.sample("obs", dist.Normal(val, sc), obs=log_gdp)
 
-guide = LowRankNormal(model, random = True)
+#guide = LowRankNormal(model, random = True)
 #guide = AutoStructured(model,
 #            conditionals={"a1": "normal", "a2": "normal", "a3": "normal", "a4": "normal", "sc": "normal"},
 #            dependencies={"a1": {"a2": "linear", "a3":"linear"}, "a4": {"a3":"linear"}})
-#guide = OrthoMultiNorm(model)
+#guide = OrthoMultiNorm(model, diagonal=True)
+guide = BlockDiagNorm(model, upperbig= True)
 #guide = PolyDiagNorm(model, epoch = 1000, order = 1)
 #guide = AutoMultivariateNormal(model)
 #guide = AutoDiagonalNormal(model)

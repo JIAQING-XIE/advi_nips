@@ -86,6 +86,7 @@ class OrthoMultiNorm(AutoContinuous):
         scale_tril = self.scale[..., None] * self.scale_tril
         scale_tril = self.build_symmetric_matrix(random = False, matrix = scale_tril)
         scale_tril = self.to_diagonal(scale_tril) if self.diagonal else scale_tril
+        print(scale_tril)
         return dist.MultivariateNormal(self.loc, scale_tril=scale_tril)
 
     def _loc_scale(self, *args, **kwargs):
