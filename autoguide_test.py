@@ -13,7 +13,8 @@ from pyro.infer.autoguide.guides import AutoDiagonalNormal, AutoMultivariateNorm
 from Models.PolyDiagonalNormal import PolyDiagNorm
 from Models.OrthoMultivariateNormal import OrthoMultiNorm
 from Models.LowRankNormal import LowRankNormal
-from Models.BlockDiag import BlockDiagNorm
+from Models.BlockDiag import BlockMultivariateNorm
+from Models.ToeplitzMultivariate import ToeplitzMultivariateNorm
 from pyro.infer.autoguide.structured import AutoStructured
 
 
@@ -57,7 +58,8 @@ def model(is_cont_africa, ruggedness, log_gdp=None):
 #            conditionals={"a1": "normal", "a2": "normal", "a3": "normal", "a4": "normal", "sc": "normal"},
 #            dependencies={"a1": {"a2": "linear", "a3":"linear"}, "a4": {"a3":"linear"}})
 #guide = OrthoMultiNorm(model, diagonal=True)
-guide = BlockDiagNorm(model, upperbig= False)
+#guide = BlockMultivariateNorm(model, upperbig= False)
+guide = ToeplitzMultivariateNorm(model, upperbig=False)
 #guide = PolyDiagNorm(model, epoch = 1000, order = 1)
 #guide = AutoMultivariateNormal(model)
 #guide = AutoDiagonalNormal(model)
@@ -70,7 +72,7 @@ svi = pyro.infer.SVI(model, guide, adam, elbo)
 pyro.clear_param_store()
 
 losses = []
-for step in range(2000 if not smoke_test else 2):  # Consider running for more steps.
+for step in range(200 if not smoke_test else 2):  # Consider running for more steps.
     loss = svi.step(is_cont_africa, ruggedness, log_gdp)
     losses.append(loss)
     print(loss)
