@@ -10,12 +10,14 @@ import os
 import pyro.distributions as dist
 import pyro.distributions.constraints as constraints
 from pyro.infer.autoguide.guides import AutoDiagonalNormal, AutoMultivariateNormal, AutoLowRankMultivariateNormal
-from Models.PolyDiagonalNormal import PolyDiagNorm
-from Models.OrthoMultivariateNormal import OrthoMultiNorm
-from Models.LowRankNormal import LowRankNormal
-from Models.BlockDiag import BlockMultivariateNorm
-from Models.ToeplitzMultivariate import ToeplitzMultivariateNorm
+from Guides.PolyDiagonalNormal import PolyDiagNorm
+from Guides.OrthoMultivariateNormal import OrthoMultiNorm
+from Guides.LowRankNormal import LowRankNormal
+from Guides.BlockDiag import BlockMultivariateNorm
+from Guides.ToeplitzMultivariate import ToeplitzMultivariateNorm
+from Guides.CirculantMultivariate import CirculantMultivariateNorm
 from pyro.infer.autoguide.structured import AutoStructured
+
 
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -42,6 +44,8 @@ train = torch.tensor(df.values, dtype=torch.float)
 is_cont_africa, ruggedness, log_gdp = train[:, 0], train[:, 1], train[:, 2]
 
 
+
+
 def model(is_cont_africa, ruggedness, log_gdp=None):
     a1 = pyro.sample("a1", dist.Normal(0., 10.))
     a2 = pyro.sample("a2", dist.Normal(0., 1.))
@@ -58,8 +62,10 @@ def model(is_cont_africa, ruggedness, log_gdp=None):
 #            conditionals={"a1": "normal", "a2": "normal", "a3": "normal", "a4": "normal", "sc": "normal"},
 #            dependencies={"a1": {"a2": "linear", "a3":"linear"}, "a4": {"a3":"linear"}})
 #guide = OrthoMultiNorm(model, diagonal=True)
-#guide = BlockMultivariateNorm(model, upperbig= False)
-guide = ToeplitzMultivariateNorm(model, upperbig=False)
+guide = BlockMultivariateNorm(model, upperbig= False, symmetric=False, cholesky=True)
+
+#guide = ToeplitzMultivariateNorm(model, extra = True)
+#guide = CirculantMultivariateNorm(model)
 #guide = PolyDiagNorm(model, epoch = 1000, order = 1)
 #guide = AutoMultivariateNormal(model)
 #guide = AutoDiagonalNormal(model)
@@ -71,12 +77,19 @@ svi = pyro.infer.SVI(model, guide, adam, elbo)
 
 pyro.clear_param_store()
 
+
+
 losses = []
-for step in range(200 if not smoke_test else 2):  # Consider running for more steps.
+best_loss = 10000001
+for step in range(1000 if not smoke_test else 2):  # Consider running for more steps.
     loss = svi.step(is_cont_africa, ruggedness, log_gdp)
     losses.append(loss)
     print(loss)
-
+    if loss < best_loss:
+        guide.print_best_cov()
+        torch.save({"model" : model, "guide" : guide}, "./best_models/mymodel.pt")
+        pyro.get_param_store().save("./best_models/saved_params.save")
+        best_loss = loss
     if step % 100 == 0:
         logging.info("Elbo loss: {}".format(loss))
 
@@ -86,5 +99,14 @@ plt.xlabel("SVI step")
 plt.ylabel("ELBO loss")
 plt.show()
 
+print("Best parameter ")
+pyro.clear_param_store()
+"""
+saved_model_dict = torch.load("mymodel.pt")
+model.load_state_dict(saved_model_dict['model'])
+guide = saved_model_dict['guide']
+"""
+pyro.get_param_store().load('./best_models/saved_params.save')
+#print(pyro.get_param_store())
 for key, value in pyro.get_param_store().items():    
     print(f"{key}:\n{value}\n")

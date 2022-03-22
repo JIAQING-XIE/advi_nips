@@ -1,12 +1,7 @@
-from audioop import mul
-from random import random
 import torch
 from torch import nn
-import pyro
 import pyro.distributions as dist
-import pyro.poutine as poutine
 from pyro.distributions import constraints
-from pyro.distributions.util import eye_like
 from pyro.nn.module import  PyroParam
 from pyro.infer.autoguide.guides import AutoContinuous
 from initialization import  init_to_median
@@ -22,22 +17,24 @@ class BlockMultivariateNorm(AutoContinuous):
     so the params for the BlockDiagNorm is larger than self.latent_dim ^ 2 / 2 but much
     smaller than self.latent_dim ^2 (an advantage might be)
 
-
     Usage::
         guide = BlockDiagNorm(model, upperbig = True, multivariate  = True)
         svi = SVI(model, guide, ...)
     """
     scale_constraint = constraints.softplus_positive
     scale_tril_constraint = constraints.corr_cholesky_constraint
+    cov_constraint = constraints.positive_definite
 
-    def __init__(self, model, init_loc_fn=init_to_median, init_scale=0.1, diagonal = True, upperbig = False,
-                    multivariate = True):
+    def __init__(self, model, init_loc_fn=init_to_median, init_scale=0.1, symmetric = True, upperbig = False,
+                    cholesky = False):
         if not isinstance(init_scale, float) or not (init_scale > 0):
             raise ValueError("Expected init_scale > 0. but got {}".format(init_scale))
         self._init_scale = init_scale
-        self.diagonal = diagonal
+        self.symmetric = symmetric
         self.upperbig = upperbig
-        self.multivariate = multivariate
+        self.cholesky = cholesky
+        self.current_cov = None
+        self.residual = 0.01
         self.A = None
         self.B = None
         super().__init__(model, init_loc_fn=init_loc_fn)
@@ -65,33 +62,52 @@ class BlockMultivariateNorm(AutoContinuous):
             D, V = torch.linalg.eig(matrix) # D is the eigen vectors and V is the reversible matrix
             return torch.diag(D).real # does not consider complex conditions
 
+    def to_posdef(self, matrix):
+        for i in range(0, self.latent_dim+1):
+            while torch.linalg.det(matrix[:i, :i]) <= 0: # determinant of the n-th pivot positive (|A_{n}|) > 0 
+                matrix = matrix + self.residual  * torch.eye(matrix.shape[0])
+        
+        return matrix
+
     def _setup_prototype(self, *args, **kwargs):
         super()._setup_prototype(*args, **kwargs)
         # Initialize guide params
-        matrix = self.build_symmetric_matrix()
-        matrix = self.to_diagonal(matrix) if self.diagonal else matrix
+
         if self.upperbig:
+
             A = torch.rand((math.ceil(self.latent_dim / 2), math.ceil(self.latent_dim / 2)))
-            A = self.build_symmetric_matrix(matrix = A, random=False)
             B = torch.rand((self.latent_dim - math.ceil(self.latent_dim / 2), 
                         self.latent_dim - math.ceil(self.latent_dim / 2)))
-            B = self.build_symmetric_matrix(matrix = B, random=False)
+
+            if self.symmetric:
+                A = self.build_symmetric_matrix(matrix = A, random=False)
+                B = self.build_symmetric_matrix(matrix = B, random=False)
+            else:
+                A = self.to_posdef(A)
+                B = self.to_posdef(B)
+
+
         else:
             B = torch.rand((math.ceil(self.latent_dim / 2), math.ceil(self.latent_dim / 2)))
             A = torch.rand((self.latent_dim - math.ceil(self.latent_dim / 2), 
                         self.latent_dim - math.ceil(self.latent_dim / 2)))
-        self.loc = nn.Parameter(self._init_loc())
-        self.scale = PyroParam(
-            torch.full_like(self.loc, self._init_scale), self.scale_constraint
-        )
-        # no more choleskyaffine requirement
-        self.A = PyroParam(
-            A, self.scale_tril_constraint
-        )
-        self.B =  PyroParam(
-            B, self.scale_tril_constraint
-        )
 
+            if self.symmetric:
+                A = self.build_symmetric_matrix(matrix = A, random=False)
+                B = self.build_symmetric_matrix(matrix = B, random=False)
+            else:
+                A = self.to_posdef(A)
+                B = self.to_posdef(B)
+
+
+        self.loc = nn.Parameter(self._init_loc())
+
+        if self.cholesky: # do LU factorization
+            self.A = PyroParam(A, self.scale_tril_constraint) 
+            self.B =  PyroParam(B, self.scale_tril_constraint)
+        else: # just ensure that the cov is positive definite
+            self.A = PyroParam(A, self.cov_constraint)
+            self.B =  PyroParam(B, self.cov_constraint)
 
     def get_base_dist(self):
         return dist.Normal(
@@ -108,29 +124,30 @@ class BlockMultivariateNorm(AutoContinuous):
         """
         Returns a MultivariateNormal posterior distribution.
         """
-        #scale_tril = None
-        #if self.multivariate:
+
+
         scale_tril = torch.zeros((self.latent_dim, self.latent_dim))
  
         tmp = math.ceil(self.latent_dim /2)
         
-        
-        #print(scale_tril[0:tmp, 0:tmp])
+
         if self.upperbig:
             scale_tril[0:tmp, 0:tmp] = self.A
             scale_tril[self.latent_dim-tmp+1:self.latent_dim, self.latent_dim-tmp+1:self.latent_dim] = self.B
         else:
             scale_tril[self.latent_dim-tmp+1:self.latent_dim, self.latent_dim-tmp+1:self.latent_dim] = self.A
             scale_tril[0:tmp, 0:tmp] = self.B
-        #p
-        #scale_tril = self.scale[..., None] * self.scale_tril
-        scale_tril = self.scale[..., None] * scale_tril
         
-        #scale_tril = self.build_symmetric_matrix(random = False, matrix = scale_tril)
-        #scale_tril = self.to_diagonal(scale_tril) if self.diagonal else scale_tril
-        #print(scale_tril)
-        
-        return dist.MultivariateNormal(self.loc, scale_tril=scale_tril)
+        self.current_cov = scale_tril
+        if self.cholesky:
+            return dist.MultivariateNormal(self.loc, scale_tril=scale_tril)
+        else:
+            return dist.MultivariateNormal(self.loc, covariance_matrix=scale_tril)
 
     def _loc_scale(self, *args, **kwargs):
         return self.loc, self.scale * self.scale_tril.diag()
+
+        
+    def print_best_cov(self):
+        print("A new best covariance matrix:\n {}".format(self.current_cov))
+

@@ -30,8 +30,10 @@ class mnist(VAE):
             batch_size=batch_size, shuffle=False, **kwargs)
         return train_loader, test_loader
 
-"""
-if __name__ == "__main__":
-    mnist1 = mnist()
-    a, b = mnist1.split_data(use_cuda=True)
-"""
+class VAEModel():
+    def __init__(self, dataset):
+        self.dataset = dataset
+    
+    def get_model(self):
+        if self.dataset == "mnist":
+            pass
