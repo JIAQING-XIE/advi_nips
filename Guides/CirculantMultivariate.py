@@ -75,9 +75,9 @@ class CirculantMultivariateNorm(AutoContinuous):
         #while torch.linalg.det(matrix[:self.latent_dim, :self.latent_dim]) <= 0: # determinant of the n-th pivot positive (|A_{n}|) > 0 
             #print(self.scale * torch.eye(self.latent_dim))
         if matrix[0][self.latent_dim-1] > matrix[0][0]:
-            matrix = matrix.fill_diagonal_((matrix[0][self.latent_dim-1] + self.residual).item() + 0.5)
+            matrix = matrix.fill_diagonal_((matrix[0][self.latent_dim-1] + self.residual).item() + 1)
         else:
-            matrix = matrix.fill_diagonal_((matrix[0][0] + self.residual).item() + 0.5)
+            matrix = matrix.fill_diagonal_((matrix[0][0] + self.residual).item() + 1)
 
 
         return matrix

@@ -24,7 +24,7 @@ class SymMultiNorm(AutoContinuous):
 
     scale_constraint = constraints.softplus_positive
 
-    def __init__(self, model, init_loc_fn=init_to_median, init_scale=0.1, diagonal = True):
+    def __init__(self, model, init_loc_fn=init_to_median, init_scale=0.1, diagonal = False):
         if not isinstance(init_scale, float) or not (init_scale > 0):
             raise ValueError("Expected init_scale > 0. but got {}".format(init_scale))
         self._init_scale = init_scale
@@ -41,6 +41,7 @@ class SymMultiNorm(AutoContinuous):
             #print(matrix)
             """ which is the choice for the training process"""
             result = residual * matrix.matmul(matrix.T) + torch.eye(self.latent_dim)
+            #print(matrix.matmul(matrix.T))
             #print(result)
             
         
@@ -84,7 +85,7 @@ class SymMultiNorm(AutoContinuous):
         """
         Returns a MultivariateNormal posterior distribution.
         """
-        mtx = self.scale.clone()
+        mtx = self.scale.clone().reshape((self.latent_dim,1))
 
         cov = self.build_symmetric_matrix(random = False, matrix = mtx)
         cov = self.to_diagonal(cov) if self.diagonal else cov
@@ -92,5 +93,5 @@ class SymMultiNorm(AutoContinuous):
         return dist.MultivariateNormal(self.loc, covariance_matrix= cov)
 
     def _loc_scale(self, *args, **kwargs):
-        return self.loc, self.scale * self.scale_tril.diag()
+        return self.loc, self.scale 
     
