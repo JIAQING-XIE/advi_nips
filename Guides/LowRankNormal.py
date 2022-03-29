@@ -46,34 +46,30 @@ class LowRankNormal(AutoContinuous):
             self.loc.new_full((self.latent_dim,), 0.5 ** 0.5 * self._init_scale),
             constraint=self.scale_constraint,
         )
-
         # U => (latent_dim, latent_dim) PyroParam
         # sigma (covariance/cov_factor) => (latent_dim, rank) PyroParam
         # V => (rank, latent_dim) PyroParam
-
 
         self.cov_factor = nn.Parameter(
             self.loc.new_empty(self.latent_dim, self.rank).normal_(
                 0, 1 / self.rank ** 0.5
             )
-        )
+        )       
         
         self.V = PyroParam(
             torch.rand((self.rank, self.latent_dim)),
             constraint=self.scale_constraint,
         ) 
-        
-        #self.V = torch.rand((self.rank, self.latent_dim))
 
     def build_symmetric_matrix(self, random = True, residual = 0.01, matrix = None):
         """ this function is used for making a positive definite symmetric matrix"""
         if random:
             rand = torch.rand((self.latent_dim, self.latent_dim)) 
             # semi-positive definite -> positive definite
-            result = rand.matmul(rand.T) + residual * torch.eye(self.latent_dim) 
+            result = residual * rand.matmul(rand.T) + torch.eye(self.latent_dim) 
         else:
             """ which is the choice for the training process"""
-            result = matrix.matmul(matrix.T) + residual * torch.eye(self.latent_dim)
+            result = residual * matrix.matmul(matrix.T) +  torch.eye(self.latent_dim)
         assert torch.det(result) > 0, "please provide a higher residual"
         return result
 
@@ -89,12 +85,12 @@ class LowRankNormal(AutoContinuous):
         full_cov = self.cov_factor.matmul(self.V)
         full_cov = full_cov + self.scale * torch.eye(self.latent_dim)
         full_cov = self.build_symmetric_matrix(matrix = full_cov, random=False)
-        #print(full_cov)
+
         return dist.MultivariateNormal(self.loc, full_cov)
-        #return dist.LowRankMultivariateNormal(self.loc, cov_factor, cov_diag)
+
 
     def _loc_scale(self, *args, **kwargs):
         #scale = self.scale * (self.cov_factor.pow(2).sum(-1) + 1).sqrt()
         #print(scale)
-        return self.loc, scale
+        pass
         

@@ -133,9 +133,9 @@ class BlockMultivariateNorm(AutoContinuous):
 
         if self.upperbig:
             scale_tril[0:tmp, 0:tmp] = self.A
-            scale_tril[self.latent_dim-tmp+1:self.latent_dim, self.latent_dim-tmp+1:self.latent_dim] = self.B
+            scale_tril[tmp:self.latent_dim, tmp:self.latent_dim] = self.B
         else:
-            scale_tril[self.latent_dim-tmp+1:self.latent_dim, self.latent_dim-tmp+1:self.latent_dim] = self.A
+            scale_tril[tmp:self.latent_dim, tmp:self.latent_dim] = self.A
             scale_tril[0:tmp, 0:tmp] = self.B
         
         self.current_cov = scale_tril
