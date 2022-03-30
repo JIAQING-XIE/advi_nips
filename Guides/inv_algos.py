@@ -11,11 +11,12 @@ class Solution():
         inv_dep = {} # to see if the two 
         for site in case.keys():
             for child in case[site].keys():
-                if child in inv_dep.keys():
-                    inv_dep[child][site] = case[site][child]
-                else:
-                    inv_dep[child] = {}
-                    inv_dep[child][site] = case[site][child]
+                if site != child:
+                    if child in inv_dep.keys():
+                        inv_dep[child][site] = case[site][child]
+                    else:
+                        inv_dep[child] = {}
+                        inv_dep[child][site] = case[site][child]
         return inv_dep
     
     def generate_relation(self, case):

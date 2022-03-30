@@ -21,7 +21,7 @@ class ToeplitzMultivariateNorm(AutoContinuous):
     """
     scale_constraint = constraints.softplus_positive
     def __init__(self, model, init_loc_fn=init_to_median, init_scale=0.1,
-                    multivariate = True, extra = False, residual = 0.01):
+                    multivariate = True, extra = True, residual = 0.01):
         if not isinstance(init_scale, float) or not (init_scale > 0):
             raise ValueError("Expected init_scale > 0. but got {}".format(init_scale))
         self._init_scale = init_scale
@@ -74,10 +74,11 @@ class ToeplitzMultivariateNorm(AutoContinuous):
         
         cov = self.to_posdef(cov)
         self.current_cov = cov
+        print(cov)
         return dist.MultivariateNormal(loc = self.loc, covariance_matrix = cov)
 
     def _loc_scale(self, *args, **kwargs):
-        return self.loc, self.scale * self.scale_tril.diag()
+        return self.loc, self.scale
 
     def print_best_cov(self):
         print("A new best covariance matrix:\n {}".format(self.current_cov))
