@@ -90,9 +90,13 @@ if __name__ == "__main__":
         pyro.set_rng_seed(seed)
         pyro.clear_param_store()
         guide = guide_list[args.method]
-        if guide == "polydiag":
+        if args.method == "polydiag":
             global_guide = guide(poutine.block(model, expose=['weights', 'locs', 'scale']),
                                 init_loc_fn=init_loc_fn, order = args.order)
+        elif args.method == "structured":
+            global_guide = guide(poutine.block(model, expose=['weights', 'locs', 'scale']),
+                                init_loc_fn=init_loc_fn, dependencies={"weights": {"locs": "linear"},},
+                                conditionals = {"weights": "normal", "scale": "delta", "locs": "normal"})
         else:
             global_guide = guide(poutine.block(model, expose=['weights', 'locs', 'scale']),
                                 init_loc_fn=init_loc_fn)

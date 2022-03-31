@@ -219,7 +219,7 @@ class PyroVAEImpl(VAE):
     def initialize_optimizer(self, lr):
         optimizer = Adam({"lr": lr})
         elbo = JitTrace_ELBO() if self.args.jit else Trace_ELBO()
-        guide = AutoDiagonalNormal(self.model)
+        guide = AutoStructured(self.model)
         return SVI(self.model, guide, optimizer, loss=elbo)
 
 
