@@ -65,7 +65,7 @@ class PolyDiagNorm(AutoContinuous):
         tmp = torch.zeros((1,self.latent_dim))
         for i in range(0, self.order):
             #sprint(order_mtx[i,:])
-            tmp += 0.1**self.order * order_mtx[i,:] + 1
+            tmp += 0.1**(self.order +1) * order_mtx[i,:] + 1
         return dist.Normal(self.loc,  tmp ).to_event(1)
 
     def _loc_scale(self, *args, **kwargs):

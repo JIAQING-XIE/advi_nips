@@ -10,7 +10,6 @@ from Guides.CirculantMultivariate import CirculantMultivariateNorm
 guide_list = {
     "autonormal": AutoDiagonalNormal,
     "multinormal": AutoMultivariateNormal,
-    "autogaussian": AutoGaussian,
     "lowrank": AutoLowRankMultivariateNormal,
     "polydiag": PolyDiagNorm,
     "symmetric": SymMultiNorm,

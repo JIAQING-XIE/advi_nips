@@ -74,7 +74,7 @@ class ToeplitzMultivariateNorm(AutoContinuous):
         
         cov = self.to_posdef(cov)
         self.current_cov = cov
-        print(cov)
+        #print(cov)
         return dist.MultivariateNormal(loc = self.loc, covariance_matrix = cov)
 
     def _loc_scale(self, *args, **kwargs):

@@ -11,8 +11,6 @@ import torch.distributions as tdist
 from pyro import poutine
 from scipy import stats
 from collections import defaultdict
-from pyro.infer.autoguide import AutoDiagonalNormal, AutoStructured
-from pyro.optim import Adam
 from pyro.infer import SVI, TraceEnum_ELBO, config_enumerate, infer_discrete
 from Guides.guide_list import guide_list
 
@@ -25,9 +23,6 @@ def parse():
     parser.add_argument('--method', type = str, help = 'autoguide methods')
     parser.add_argument('--epochs', default = 200, type = int, help = 'number of epochs')
     parser.add_argument('--lr', default= 0.1, type=float, help = "learning rate")
-    parser.add_argument('--step_lr', default = False, type = bool, help = "if use step scheduler")
-    parser.add_argument('--expo_lr', default = False, type = bool, help = "if use exponential optimizer")
-    parser.add_argument('--gamma', default= 0.1, type=float, help = "gamma")
     parser.add_argument('--K', default = 2, type = int, help = "number of centers")
     parser.add_argument('--order', default=1, type = int, help="order for PolyDiag")
     return parser.parse_args()
@@ -119,10 +114,20 @@ if __name__ == "__main__":
         loss = svi.step(data)
         if loss < best_loss:
             best_loss = loss
+            pyro.get_param_store().save("./best_params/gmm/saved_params_{}_{}.save".format(args.method, args.K))
         losses.append(loss)
         print('.' if i % 100 else '\n', end='')
     
     print("Best loss: {}".format(best_loss))
+
+    pyro.clear_param_store()
+    pyro.get_param_store().load("./best_params/gmm/saved_params_{}_{}.save".format(args.method, args.K))
+    """
+    print("Best param:")
+    for key, value in pyro.get_param_store().items():    
+        print(f"{key}:\n{value}\n")
+    """
+    
     pyplot.figure(figsize=(16,8), dpi=100).set_facecolor('white')
     pyplot.plot(losses)
     pyplot.xlabel('iters')
