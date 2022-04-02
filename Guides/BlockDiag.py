@@ -132,10 +132,14 @@ class BlockMultivariateNorm(AutoContinuous):
         
 
         if self.upperbig:
+            #self.A = self.build_symmetric_matrix(random = False, matrix = self.A)
             scale_tril[0:tmp, 0:tmp] = self.A
+            #self.B = self.build_symmetric_matrix(random = False, matrix = self.B)
             scale_tril[tmp:self.latent_dim, tmp:self.latent_dim] = self.B
         else:
+            #self.A = self.build_symmetric_matrix(random = False, matrix = self.A)
             scale_tril[tmp:self.latent_dim, tmp:self.latent_dim] = self.A
+            #self.B = self.build_symmetric_matrix(random = False, matrix = self.B)
             scale_tril[0:tmp, 0:tmp] = self.B
         
         self.current_cov = scale_tril
