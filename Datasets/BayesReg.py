@@ -63,9 +63,8 @@ class BayesModel():
         self.dataset = dataset
         self.name = name
     
-    def model(self, predict = None):
+    def model(self, is_cont_africa, ruggedness, log_gdp = None):
         if self.name == "income":
-            is_cont_africa, ruggedness, log_gdp = self.dataset[0], self.dataset[1], self.dataset[2]
             a1 = pyro.sample("a1", dist.Normal(0., 10.))
             a2 = pyro.sample("a2", dist.Normal(0., 1.))
             a3 = pyro.sample("a3", dist.Normal(0., 1.))
@@ -75,38 +74,4 @@ class BayesModel():
 
             with pyro.plate("data", len(ruggedness)):
                 return pyro.sample("obs", dist.Normal(val, sc), obs=log_gdp)
-        elif self.name == "covid":
-            features = self.dataset["features"]
-            counts = self.dataset["counts"]
-            sparse_counts = self.dataset["sparse_counts"]
-            assert features.shape[0] == counts.shape[-1]
-            S, M = features.shape
-            T, P, S = counts.shape
-            time = torch.arange(float(T)) * self.dataset["time_step_days"] / 5.5
-            time -= time.mean()
-
-            # Model each region as multivariate logistic growth.
-            rate_scale = pyro.sample("rate_scale", dist.LogNormal(-4, 2))
-            init_scale = pyro.sample("init_scale", dist.LogNormal(0, 2))
-            with pyro.plate("mutation", M, dim=-1):
-                coef = pyro.sample("coef", dist.Laplace(0, 0.5))
-            with pyro.plate("strain", S, dim=-1):
-                rate_loc = pyro.deterministic("rate_loc", 0.01 * coef @ features.T)
-                with pyro.plate("place", P, dim=-2):
-                    rate = pyro.sample("rate", dist.Normal(rate_loc, rate_scale))
-                    init = pyro.sample("init", dist.Normal(0, init_scale))
-
-            #print(time)
-           # if predict is not None:  # Exit early during evaluation.
-           #     probs = (init + rate * time[predict]).softmax(-1)
-            #    return probs
-            logits = (init + rate * time[:, None, None]).log_softmax(-1)
-
-            # Observe sequences via a cheap sparse multinomial likelihood.
-            t, p, s = sparse_counts["index"]
-            pyro.factor(
-                "obs",
-                sparse_multinomial_likelihood(
-                    sparse_counts["total"], logits[t, p, s], sparse_counts["value"]
-                )
-            )
+    

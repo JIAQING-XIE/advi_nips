@@ -24,25 +24,24 @@ class SymMultiNorm(AutoContinuous):
 
     scale_constraint = constraints.softplus_positive
 
-    def __init__(self, model, init_loc_fn=init_to_median, init_scale=0.1, diagonal = False):
+    def __init__(self, model, init_loc_fn=init_to_median, init_scale=0.1, diagonal = False, residual = 0.01):
         if not isinstance(init_scale, float) or not (init_scale > 0):
             raise ValueError("Expected init_scale > 0. but got {}".format(init_scale))
         self._init_scale = init_scale
         self.diagonal = diagonal
+        self.residual = residual 
         super().__init__(model, init_loc_fn=init_loc_fn)
     
-    def build_symmetric_matrix(self, random = True, residual = 0.01, matrix = None):
+    def build_symmetric_matrix(self, random = True, matrix = None):
         """ this function is used for making a positive definite symmetric matrix"""
         if random:
             rand = torch.rand((self.latent_dim, self.latent_dim)) 
             # semi-positive definite -> positive definite
-            result = residual * rand.matmul(rand.T) +  torch.eye(self.latent_dim) 
+            result = self.residual * rand.matmul(rand.T) +  torch.eye(self.latent_dim) 
         else:
-            #print(matrix)
+
             """ which is the choice for the training process"""
-            result = residual * matrix.matmul(matrix.T) + torch.eye(self.latent_dim)
-            #print(matrix.matmul(matrix.T))
-            #print(result)
+            result = self.residual * matrix.matmul(matrix.T) + torch.eye(self.latent_dim)
             
         
         assert torch.det(result) > 0, "please provide a higher residual"
@@ -86,9 +85,10 @@ class SymMultiNorm(AutoContinuous):
         Returns a MultivariateNormal posterior distribution.
         """
         mtx = self.scale.clone().reshape((self.latent_dim,1))
-
+        
         cov = self.build_symmetric_matrix(random = False, matrix = mtx)
-        cov = self.to_diagonal(cov) if self.diagonal else cov
+        #print(cov)
+        #cov = self.to_diagonal(cov) if self.diagonal else cov
         #print(self.scale)
         return dist.MultivariateNormal(self.loc, covariance_matrix= cov)
 

@@ -20,7 +20,7 @@ class PolyDiagNorm(AutoContinuous):
         guide = PolyDiagNorm(model, order = 2)
         svi = SVI(model, guide, ...)
     """
-
+    scale_constraint = constraints.softplus_positive
     def __init__(self, model, init_loc_fn=init_to_median, epoch = 0, order = 1 ):
         self.order = order
         self.epoch = epoch
@@ -34,7 +34,7 @@ class PolyDiagNorm(AutoContinuous):
         # Initialize guide params
         self.loc = nn.Parameter(self._init_loc())
         self.scale = PyroParam(
-            rand_mtx
+            rand_mtx, self.scale_constraint 
         )
         self.L = torch.rand((self.order, self.latent_dim))/100
         self.h = torch.rand((self.order, self.latent_dim))/100
