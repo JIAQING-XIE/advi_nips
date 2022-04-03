@@ -139,7 +139,10 @@ def main(args):
 
     # setup the inference algorithm
     elbo = JitTrace_ELBO() if args.jit else Trace_ELBO()
-    svi = SVI(vae.model, guide_list[args.method](vae.model), optimizer, loss=elbo)
+    if args.method == "no_ag":
+        svi = SVI(vae.model, vae.guide, optimizer, loss=elbo)
+    else:
+        svi = SVI(vae.model, guide_list[args.method](vae.model), optimizer, loss=elbo)
 
     # setup visdom for visualization
     if args.visdom_flag:
@@ -222,7 +225,7 @@ if __name__ == "__main__":
     # parse command line arguments
     parser = argparse.ArgumentParser(description="parse args")
     parser.add_argument(
-        "-n", "--num-epochs", default=21, type=int, help="number of training epochs"
+        "-n", "--num-epochs", default=5, type=int, help="number of training epochs"
     )
     parser.add_argument("--method", type = str, help = "autguide type")
     parser.add_argument(
@@ -245,13 +248,13 @@ if __name__ == "__main__":
         "-visdom",
         "--visdom_flag",
         action="store_true",
-        default=False,
+        default=True,
         help="Whether plotting in visdom is desired",
     )
     parser.add_argument(
         "-i-tsne",
         "--tsne_iter",
-        default=20,
+        default=4,
         type=int,
         help="epoch when tsne visualization runs",
     )

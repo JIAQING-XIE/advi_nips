@@ -61,7 +61,7 @@ class LowRankNormal(AutoContinuous):
             constraint=self.scale_constraint,
         ) 
 
-    def build_symmetric_matrix(self, random = True, residual = 0.01, matrix = None):
+    def build_symmetric_matrix(self, random = True, residual = 0.01, matrix = None): # 0.0001 for levy!!!
         """ this function is used for making a positive definite symmetric matrix"""
         if random:
             rand = torch.rand((self.latent_dim, self.latent_dim)) 
@@ -69,8 +69,9 @@ class LowRankNormal(AutoContinuous):
             result = residual * rand.matmul(rand.T) + torch.eye(self.latent_dim) 
         else:
             """ which is the choice for the training process"""
-            result = residual * matrix.matmul(matrix.T) +  torch.eye(self.latent_dim)
-        assert torch.det(result) > 0, "please provide a higher residual"
+            #print(matrix)
+            result = residual * matrix.matmul(matrix.T) + residual *  torch.eye(self.latent_dim)
+        #assert torch.det(result) > 0, "please provide a higher residual"
         return result
 
     def get_posterior(self, *args, **kwargs):
@@ -90,7 +91,6 @@ class LowRankNormal(AutoContinuous):
 
 
     def _loc_scale(self, *args, **kwargs):
-        #scale = self.scale * (self.cov_factor.pow(2).sum(-1) + 1).sqrt()
-        #print(scale)
-        pass
+        scale = self.scale * (self.cov_factor.pow(2).sum(-1) + 1).sqrt()
+        return self.loc, scale
         

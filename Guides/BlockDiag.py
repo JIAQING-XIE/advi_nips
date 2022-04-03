@@ -25,7 +25,7 @@ class BlockMultivariateNorm(AutoContinuous):
     scale_tril_constraint = constraints.corr_cholesky_constraint
     cov_constraint = constraints.positive_definite
 
-    def __init__(self, model, init_loc_fn=init_to_median, init_scale=0.1, symmetric = True, upperbig = False,
+    def __init__(self, model, init_loc_fn=init_to_median, init_scale=0.01, symmetric = True, upperbig = True,
                     cholesky = False):
         if not isinstance(init_scale, float) or not (init_scale > 0):
             raise ValueError("Expected init_scale > 0. but got {}".format(init_scale))
@@ -39,7 +39,7 @@ class BlockMultivariateNorm(AutoContinuous):
         self.B = None
         super().__init__(model, init_loc_fn=init_loc_fn)
     
-    def build_symmetric_matrix(self, random = True, residual = 0.1, matrix = None):
+    def build_symmetric_matrix(self, random = True, residual = 0.1, matrix = None): # 0.001 for levy
         """ this function is used for making a positive definite symmetric matrix"""
         if random:
             rand = torch.rand((self.latent_dim, self.latent_dim)) 
@@ -47,8 +47,8 @@ class BlockMultivariateNorm(AutoContinuous):
             result = rand.matmul(rand.T) + residual * torch.eye(self.latent_dim) 
         else:
             """ which is the choice for the training process"""
-            result = matrix.matmul(matrix.T) + residual * torch.eye(matrix.size(0))
-        assert torch.det(result) > 0, "please provide a higher residual"
+            result =  matrix.matmul(matrix.T) + residual * torch.eye(matrix.size(0)) # residual, 2 * residual
+        #assert torch.det(result) > 0, "please provide a higher residual"
         return result
         
     def to_diagonal(self, matrix = None):
@@ -149,7 +149,8 @@ class BlockMultivariateNorm(AutoContinuous):
             return dist.MultivariateNormal(self.loc, covariance_matrix=scale_tril)
 
     def _loc_scale(self, *args, **kwargs):
-        return self.loc, self.scale * self.scale_tril.diag()
+ 
+        return self.loc, self.current_cov.diag()
 
         
     def print_best_cov(self):

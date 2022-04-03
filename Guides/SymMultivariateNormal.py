@@ -41,10 +41,11 @@ class SymMultiNorm(AutoContinuous):
         else:
 
             """ which is the choice for the training process"""
-            result = self.residual * matrix.matmul(matrix.T) + torch.eye(self.latent_dim)
-            
+            #print( matrix.matmul(matrix.T))
+            result = self.residual * matrix.matmul(matrix.T) +  self.residual * torch.eye(self.latent_dim) # for levy
+            #for other data: result = self.residual * matrix.matmul(matrix.T) + torch.eye(self.latent_dim) 
         
-        assert torch.det(result) > 0, "please provide a higher residual"
+        #assert torch.det(result) > 0, "please provide a higher residual"
         return result
         
     def to_diagonal(self, matrix = None):
@@ -61,12 +62,15 @@ class SymMultiNorm(AutoContinuous):
     def _setup_prototype(self, *args, **kwargs):
         super()._setup_prototype(*args, **kwargs)
         # Initialize guide params
-        matrix = self.build_symmetric_matrix()
-        matrix = self.to_diagonal(matrix) if self.diagonal else matrix
+
         self.loc = nn.Parameter(self._init_loc())
         self.scale = PyroParam(
-            torch.randn((self.latent_dim,))
+            torch.rand((self.latent_dim,)), self.scale_constraint
         )
+        self.scale = PyroParam(
+            torch.zeros((self.latent_dim,)) + self.residual, self.scale_constraint
+        )
+        #print(self.scale)
         # no more choleskyaffine requirement
 
     def get_base_dist(self):
@@ -85,10 +89,10 @@ class SymMultiNorm(AutoContinuous):
         Returns a MultivariateNormal posterior distribution.
         """
         mtx = self.scale.clone().reshape((self.latent_dim,1))
-        
+        #print(self.scale)
         cov = self.build_symmetric_matrix(random = False, matrix = mtx)
         #print(cov)
-        #cov = self.to_diagonal(cov) if self.diagonal else cov
+        cov = self.to_diagonal(cov) if self.diagonal else cov
         #print(self.scale)
         return dist.MultivariateNormal(self.loc, covariance_matrix= cov)
 

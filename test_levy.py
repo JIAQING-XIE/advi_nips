@@ -16,7 +16,6 @@ from pyro.optim import ClippedAdam
 from pyro.ops.tensor_utils import convolve
 from Guides.guide_list import guide_list
 
-
 assert pyro.__version__.startswith('1.8.1')
 smoke_test = ('CI' in os.environ)
 
@@ -86,20 +85,24 @@ if __name__ == "__main__":
     pyro.clear_param_store()
     pyro.set_rng_seed(1234567890)
     num_steps = 1 if smoke_test else args.epochs
-    optim = ClippedAdam({"lr": args.lr_rate, "betas": (0.9, 0.99), "lrd": 1.0})
+    optim = ClippedAdam({"lr": args.lr_rate, "betas": (0.9, 0.99), "lrd": 0.8})
     if args.method == "symmetric":
         guide = guide_list[args.method](reparam_model, residual = 0.001)
     else:
         guide = guide_list[args.method](reparam_model)
     svi = SVI(reparam_model, guide, optim, Trace_ELBO())
     losses = []
+    best_loss = 1000001
     for step in range(num_steps):
         loss = svi.step(r) / len(r)
         losses.append(loss)
+        if loss < best_loss:
+            best_loss = loss
+            pyro.get_param_store().save("./best_params/levy/best_model_{}.save".format(args.method))
         if step % 50 == 0:
             #median = guide.median()
             print("step {} loss = {:0.6g}".format(step, loss))
-
+    print("Best loss: {}".format(best_loss))
     print("-" * 20)
     for name, (lb, ub) in sorted(guide.quantiles([0.325, 0.675]).items()):
         if lb.numel() == 1:
@@ -114,3 +117,27 @@ if __name__ == "__main__":
     pyplot.xlim(0, len(losses))
     pyplot.ylim(min(losses), 20)
     pyplot.savefig("./Results/levy/loss_{}_{}.png".format(args.method, args.length), dpi = 100)
+
+    pyro.clear_param_store()
+    pyro.get_param_store().load("./best_params/levy/best_model_{}.save".format(args.method))
+    fig, axes = pyplot.subplots(2, figsize=(9, 5), sharex=True)
+    pyplot.subplots_adjust(hspace=0)
+    axes[1].plot(r, "k", lw=0.2)
+    axes[1].set_ylabel("log returns")
+    axes[1].set_xlim(0, len(r))
+
+    # We will pull out median log returns using the autoguide's .median() and poutines.
+    with torch.no_grad():
+        pred = Predictive(reparam_model, guide=guide, num_samples=20, parallel=True)(r)
+    log_h = pred["log_h"]
+    axes[0].plot(log_h.median(0).values, lw=1)
+    axes[0].fill_between(torch.arange(len(log_h[0])),
+                        log_h.kthvalue(2, dim=0).values,
+                        log_h.kthvalue(18, dim=0).values,
+                        color='red', alpha=0.5)
+    axes[0].set_ylabel("log volatility")
+
+    stability = pred["r_stability"].median(0).values.item()
+    axes[0].set_title("Estimated index of stability = {:0.4g}".format(stability))
+    axes[1].set_xlabel("trading day")
+    pyplot.savefig("./Results/levy/est_log_return_{}.png".format(args.method))
